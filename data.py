@@ -8,6 +8,7 @@ from torchvision import transforms as T
 from torchvision.datasets import CIFAR10
 from tqdm import tqdm
 
+from data_utils import GroupLabelDataset, MarkDataset, CorruptLabelDataset
 
 class CIFAR10Data(pl.LightningDataModule):
     def __init__(self, args):
@@ -15,6 +16,19 @@ class CIFAR10Data(pl.LightningDataModule):
         self.hparams = args
         self.mean = (0.4914, 0.4822, 0.4465)
         self.std = (0.2471, 0.2435, 0.2616)
+
+
+
+    def train_dataloader(self):
+        train_ldrs={
+            "std": self.train_dataloader_std,
+            "mark": self.train_dataloader_mark,
+            "group": self.train_dataloader_group,
+            "corrupt": self.train_dataloader_corrupt
+        }
+
+        return train_ldrs[self.hparams.ds_type]()
+
 
     def download_weights():
         url = (
@@ -45,7 +59,7 @@ class CIFAR10Data(pl.LightningDataModule):
             zip_ref.extractall(directory_to_extract_to)
             print("Unzip file successful!")
 
-    def train_dataloader(self):
+    def train_dataloader_std(self):
         transform = T.Compose(
             [
                 T.RandomCrop(32, padding=4),
@@ -55,6 +69,69 @@ class CIFAR10Data(pl.LightningDataModule):
             ]
         )
         dataset = CIFAR10(root=self.hparams.data_dir, train=True, transform=transform)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.hparams.batch_size,
+            num_workers=self.hparams.num_workers,
+            shuffle=True,
+            drop_last=True,
+            pin_memory=True,
+        )
+        return dataloader
+
+    def train_dataloader_group(self):
+        transform = T.Compose(
+            [
+                T.RandomCrop(32, padding=4),
+                T.RandomHorizontalFlip(),
+                T.ToTensor(),
+                T.Normalize(self.mean, self.std),
+            ]
+        )
+        dataset = GroupLabelDataset(CIFAR10(root=self.hparams.data_dir, train=True, transform=transform))
+
+
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.hparams.batch_size,
+            num_workers=self.hparams.num_workers,
+            shuffle=True,
+            drop_last=True,
+            pin_memory=True,
+        )
+        return dataloader
+
+    def train_dataloader_mark(self):
+        transform = T.Compose(
+            [
+                T.RandomCrop(32, padding=4),
+                T.RandomHorizontalFlip(),
+                T.ToTensor(),
+                T.Normalize(self.mean, self.std),
+            ]
+        )
+        dataset = MarkDataset(CIFAR10(root=self.hparams.data_dir, train=True, transform=transform))
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.hparams.batch_size,
+            num_workers=self.hparams.num_workers,
+            shuffle=True,
+            drop_last=True,
+            pin_memory=True,
+        )
+        return dataloader
+
+    def train_dataloader_corrupt(self):
+        transform = T.Compose(
+            [
+                T.RandomCrop(32, padding=4),
+                T.RandomHorizontalFlip(),
+                T.ToTensor(),
+                T.Normalize(self.mean, self.std),
+            ]
+        )
+        dataset = CorruptLabelDataset(CIFAR10(root=self.hparams.data_dir, train=True, transform=transform))
+
         dataloader = DataLoader(
             dataset,
             batch_size=self.hparams.batch_size,

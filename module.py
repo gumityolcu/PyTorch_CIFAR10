@@ -36,6 +36,7 @@ class CIFAR10Module(pl.LightningModule):
         self.accuracy = Accuracy()
 
         self.model = all_classifiers[self.hparams.classifier]
+        pass
 
     def forward(self, batch):
         images, labels = batch

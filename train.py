@@ -77,6 +77,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--learning_rate", type=float, default=1e-2)
     parser.add_argument("--weight_decay", type=float, default=1e-2)
+    parser.add_argument("--ds_type", type=str, default="group")
 
     args = parser.parse_args()
     main(args)
