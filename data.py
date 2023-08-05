@@ -18,18 +18,6 @@ class CIFAR10Data(pl.LightningDataModule):
         self.std = (0.2471, 0.2435, 0.2616)
 
 
-
-    def train_dataloader(self):
-        train_ldrs={
-            "std": self.train_dataloader_std,
-            "mark": self.train_dataloader_mark,
-            "group": self.train_dataloader_group,
-            "corrupt": self.train_dataloader_corrupt
-        }
-
-        return train_ldrs[self.hparams.ds_type]()
-
-
     def download_weights():
         url = (
             "https://rutgers.box.com/shared/static/gkw08ecs797j2et1ksmbg1w5t3idf5r5.zip"
@@ -58,6 +46,16 @@ class CIFAR10Data(pl.LightningDataModule):
         with zipfile.ZipFile(path_to_zip_file, "r") as zip_ref:
             zip_ref.extractall(directory_to_extract_to)
             print("Unzip file successful!")
+
+    def train_dataloader(self):
+        train_ldrs={
+            "std": self.train_dataloader_std,
+            "mark": self.train_dataloader_mark,
+            "group": self.train_dataloader_group,
+            "corrupt": self.train_dataloader_corrupt
+        }
+
+        return train_ldrs[self.hparams.ds_type]()
 
     def train_dataloader_std(self):
         transform = T.Compose(

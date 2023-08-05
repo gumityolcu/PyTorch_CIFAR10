@@ -28,13 +28,14 @@ def main(args):
         trainer = Trainer(
             fast_dev_run=bool(args.dev),
             logger=logger if not bool(args.dev + args.test_phase) else None,
-            gpus=-1,
+            gpus=0,
             deterministic=True,
             weights_summary=None,
             log_every_n_steps=1,
             max_epochs=args.max_epochs,
             checkpoint_callback=checkpoint,
             precision=args.precision,
+            weights_save_path=args.ds_type
         )
 
         model = CIFAR10Module(args)
@@ -57,7 +58,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
 
     # PROGRAM level args
-    parser.add_argument("--data_dir", type=str, default="/data/huy/cifar10")
+    parser.add_argument("--data_dir", type=str, default="/home/fe/yolcu/Documents/Code/Datasets")
     parser.add_argument("--download_weights", type=int, default=0, choices=[0, 1])
     parser.add_argument("--test_phase", type=int, default=0, choices=[0, 1])
     parser.add_argument("--dev", type=int, default=0, choices=[0, 1])
@@ -71,9 +72,9 @@ if __name__ == "__main__":
 
     parser.add_argument("--precision", type=int, default=32, choices=[16, 32])
     parser.add_argument("--batch_size", type=int, default=256)
-    parser.add_argument("--max_epochs", type=int, default=100)
+    parser.add_argument("--max_epochs", type=int, default=1)
     parser.add_argument("--num_workers", type=int, default=8)
-    parser.add_argument("--gpu_id", type=str, default="3")
+    parser.add_argument("--gpu_id", type=str, default="-1")
 
     parser.add_argument("--learning_rate", type=float, default=1e-2)
     parser.add_argument("--weight_decay", type=float, default=1e-2)

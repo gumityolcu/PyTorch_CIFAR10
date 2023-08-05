@@ -1,10 +1,8 @@
 from tqdm import tqdm
 import torch
 from torch.utils.data.dataset import Dataset
-from datasets.MNIST import MNIST, FashionMNIST
-from datasets.CIFAR import CIFAR
-import matplotlib.pyplot as plt
 import os
+from torchvision import transforms
 
 
 class ReduceLabelDataset(Dataset):
@@ -36,26 +34,26 @@ class CorruptLabelDataset(Dataset):
 
     def __init__(self, dataset, p=0.3):
         super().__init__()
-        self.class_labels=dataset.class_labels
+        #self.class_labels=dataset.class_labels
         torch.manual_seed(420)  # THIS SHOULD NOT BE CHANGED BETWEEN TRAIN TIME AND TEST TIME
-        self.inverse_transform=dataset.inverse_transform
+        #self.inverse_transform=dataset.inverse_transform
         self.dataset=dataset
         if hasattr(dataset,"class_groups"):
             self.class_groups=dataset.class_groups
         self.classes=dataset.classes
-        if os.path.isfile(f'datasets/{dataset.name}_corrupt_ids'):
-            self.corrupt_samples=torch.load(f'datasets/{dataset.name}_corrupt_ids')
-            self.corrupt_labels=torch.load(f'datasets/{dataset.name}_corrupt_labels')
+        if os.path.isfile(f'datasets/CIFAR10_corrupt_ids'):
+            self.corrupt_samples=torch.load(f'datasets/CIFAR10_corrupt_ids')
+            self.corrupt_labels=torch.load(f'datasets/CIFAR10_corrupt_labels')
         else:
             self.corrupt_labels=[]
             corrupt = torch.rand(len(dataset))
             self.corrupt_samples=torch.squeeze((corrupt<p).nonzero())
-            torch.save(self.corrupt_samples,f'datasets/{dataset.name}_corrupt_ids')
+            torch.save(self.corrupt_samples,f'datasets/CIFAR10_corrupt_ids')
             for i in self.corrupt_samples:
                 _,y = self.dataset.__getitem__(i)
                 self.corrupt_labels.append(self.corrupt_label(y))
             self.corrupt_labels=torch.tensor(self.corrupt_labels)
-            torch.save(self.corrupt_labels,f"datasets/{dataset.name}_corrupt_labels")
+            torch.save(self.corrupt_labels,f"datasets/CIFAR10_corrupt_labels")
 
     def __len__(self):
         return len(self.dataset)
@@ -63,9 +61,8 @@ class CorruptLabelDataset(Dataset):
     def __getitem__(self, item):
         x,y_true=self.dataset.__getitem__(item)
         y = y_true
-        if self.dataset.split=="train":
-            if item in self.corrupt_samples:
-                y=int(self.corrupt_labels[torch.squeeze((self.corrupt_samples==item).nonzero())])
+        if item in self.corrupt_samples:
+            y=int(self.corrupt_labels[torch.squeeze((self.corrupt_samples==item).nonzero())])
         return x,y
 
 class MarkDataset(Dataset):
@@ -83,25 +80,29 @@ class MarkDataset(Dataset):
 
     def __init__(self, dataset, p=0.3, cls_to_mark=2, only_train=False):
         super().__init__()
-        self.class_labels=dataset.class_labels
         torch.manual_seed(420)  # THIS SHOULD NOT BE CHANGED BETWEEN TRAIN TIME AND TEST TIME
+
+        self.inverse_transform = transforms.Compose([transforms.Normalize(mean=(0., 0., 0.),
+                                                                     std=(
+                                                                         1. / 0.24703233, 1. / 0.24348505,
+                                                                         1. / 0.26158768)),
+                                                transforms.Normalize(mean=(-0.49139968, -0.48215827, -0.44653124),
+                                                                     std=(1., 1., 1.)),
+                                                ])
+        self.default_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.49139968, 0.48215841, 0.44653091), (0.24703233, 0.24348505, 0.26158768))
+    ])
         self.only_train=only_train
         self.dataset=dataset
-        self.inverse_transform=dataset.inverse_transform
         self.cls_to_mark=cls_to_mark
         self.mark_prob=p
-        if hasattr(dataset,"class_groups"):
-            self.class_groups=dataset.class_groups
         self.classes=dataset.classes
-        if dataset.split=="train":
-            if os.path.isfile(f'datasets/{dataset.name}_mark_ids'):
-                self.mark_samples=torch.load(f'datasets/{dataset.name}_mark_ids')
-            else:
-                self.mark_samples=self.get_mark_sample_ids()
-                torch.save(self.mark_samples,f'datasets/{dataset.name}_mark_ids')
+        if os.path.isfile(f'datasets/CIFAR10_mark_ids'):
+            self.mark_samples=torch.load(f'datasets/CIFAR10_mark_ids')
         else:
-
-            self.mark_samples = range(len(dataset))
+            self.mark_samples=self.get_mark_sample_ids()
+            torch.save(self.mark_samples,f'datasets/CIFAR10_mark_ids')
 
     def __len__(self):
         return len(self.dataset)
@@ -126,7 +127,7 @@ class MarkDataset(Dataset):
         #plt.imshow(x.permute(1,2,0).squeeze())
         #plt.show()
 
-        return self.dataset.transform(x.numpy().transpose(1,2,0))
+        return self.default_transform(x.numpy().transpose(1,2,0))
 
     def mark_image_middle_square(self,x):
         x=self.dataset.inverse_transform(x)
@@ -138,10 +139,10 @@ class MarkDataset(Dataset):
             x[1:]=torch.zeros_like(x[1:])*mask+x[1:]*(1-mask)
         #plt.imshow(x.permute(1,2,0).squeeze())
         #plt.show()
-        return self.dataset.transform(x.numpy().transpose(1,2,0))
+        return self.default_transform(x.numpy().transpose(1,2,0))
 
     def mark_image(self,x):
-        x=self.dataset.inverse_transform(x)
+        x=self.inverse_transform(x)
         mask=torch.zeros_like(x[0])
         mid=int(x.shape[-1]/2)
         mask[mid-3:mid+3,mid-3:mid+3]=1.
@@ -154,7 +155,7 @@ class MarkDataset(Dataset):
             x[1:]=torch.zeros_like(x[1:])*mask+x[1:]*(1-mask)
         #plt.imshow(x.permute(1,2,0).squeeze())
         #plt.show()
-        return self.dataset.transform(x.numpy().transpose(1,2,0))
+        return self.default_transform(x.numpy().transpose(1,2,0))
 
 
 
@@ -172,7 +173,6 @@ class GroupLabelDataset(Dataset):
     def __init__(self, dataset, class_groups=[[0,1],[2,3],[4,5],[6,7],[8,9]]):
         self.dataset = dataset
         self.class_labels=[i for i in range(len(class_groups))]
-        self.inverse_transform=dataset.inverse_transform
         if class_groups is None:
             class_groups=GroupLabelDataset.class_group_by2
         self.classes=class_groups
