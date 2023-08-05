@@ -36,6 +36,9 @@ class CIFAR10Module(pl.LightningModule):
         self.accuracy = Accuracy()
 
         self.model = all_classifiers[self.hparams.classifier]
+        num_classes= 5 if hparams.ds_type=="group" else 10
+        print(f"numm: {num_classes}")
+        self.model.fc=torch.nn.Linear(in_features=self.model.fc.in_features, out_features=num_classes, bias=False)
         pass
 
     def forward(self, batch):

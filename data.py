@@ -6,6 +6,7 @@ import requests
 from torch.utils.data import DataLoader
 from torchvision import transforms as T
 from torchvision.datasets import CIFAR10
+from datasets.CIFAR import CIFAR
 from tqdm import tqdm
 
 from data_utils import GroupLabelDataset, MarkDataset, CorruptLabelDataset
@@ -16,7 +17,6 @@ class CIFAR10Data(pl.LightningDataModule):
         self.hparams = args
         self.mean = (0.4914, 0.4822, 0.4465)
         self.std = (0.2471, 0.2435, 0.2616)
-
 
     def download_weights():
         url = (
@@ -141,13 +141,75 @@ class CIFAR10Data(pl.LightningDataModule):
         return dataloader
 
     def val_dataloader(self):
+        val_ldrs={
+            "std": self.val_dataloader_std,
+            "mark": self.val_dataloader_mark,
+            "group": self.val_dataloader_group,
+            "corrupt": self.val_dataloader_corrupt
+        }
+        return val_ldrs[self.hparams.ds_type]()
+
+    def val_dataloader_std(self):
         transform = T.Compose(
             [
                 T.ToTensor(),
                 T.Normalize(self.mean, self.std),
             ]
         )
-        dataset = CIFAR10(root=self.hparams.data_dir, train=False, transform=transform)
+        dataset = CIFAR(root=self.hparams.data_dir, split="val", transform=transform,validation_size=2000)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.hparams.batch_size,
+            num_workers=self.hparams.num_workers,
+            drop_last=True,
+            pin_memory=True,
+        )
+        return dataloader
+
+    def val_dataloader_group(self):
+        transform = T.Compose(
+            [
+                T.ToTensor(),
+                T.Normalize(self.mean, self.std),
+            ]
+        )
+        dataset = GroupLabelDataset(CIFAR(root=self.hparams.data_dir, split="val", transform=transform, validation_size=2000))
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.hparams.batch_size,
+            num_workers=self.hparams.num_workers,
+            drop_last=True,
+            pin_memory=True,
+        )
+        return dataloader
+
+    def val_dataloader_mark(self):
+        transform = T.Compose(
+            [
+                T.ToTensor(),
+                T.Normalize(self.mean, self.std),
+            ]
+        )
+        dataset = MarkDataset(
+            CIFAR(root=self.hparams.data_dir, split="val", transform=transform, validation_size=2000))
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.hparams.batch_size,
+            num_workers=self.hparams.num_workers,
+            drop_last=True,
+            pin_memory=True,
+        )
+        return dataloader
+
+    def val_dataloader_corrupt(self):
+        transform = T.Compose(
+            [
+                T.ToTensor(),
+                T.Normalize(self.mean, self.std),
+            ]
+        )
+        dataset = CorruptLabelDataset(
+            CIFAR(root=self.hparams.data_dir, split="val", transform=transform, validation_size=2000))
         dataloader = DataLoader(
             dataset,
             batch_size=self.hparams.batch_size,
