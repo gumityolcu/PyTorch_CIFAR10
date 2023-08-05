@@ -11,12 +11,11 @@ from module import CIFAR10Module
 
 
 def main(args):
-
     if bool(args.download_weights):
         CIFAR10Data.download_weights()
     else:
         seed_everything(0)
-        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
+        #os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
 
         if args.logger == "wandb":
             logger = WandbLogger(name=args.classifier, project="cifar10")
@@ -28,7 +27,7 @@ def main(args):
         trainer = Trainer(
             fast_dev_run=bool(args.dev),
             logger=logger if not bool(args.dev + args.test_phase) else None,
-            gpus=0,
+            gpus=-1,
             deterministic=True,
             weights_summary=None,
             log_every_n_steps=1,
